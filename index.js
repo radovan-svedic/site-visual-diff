@@ -134,7 +134,7 @@ async function crawl(page, baseUrl, maxDepth = 2) {
 
     let status;
     try {
-      const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+      const response = await page.goto(url, { waitUntil: 'load', timeout: 60000 });
       status = response ? response.status() : 0;
     } catch (err) {
       status = 0;
@@ -218,6 +218,40 @@ function sanitizeFilename(url) {
   return name;
 }
 
+// Realistic browser fingerprint to avoid bot detection / throttling
+const REALISTIC_HEADERS = {
+  userAgent:
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  extraHTTPHeaders: {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Sec-Ch-Ua': '"Chromium";v="131", "Google Chrome";v="131", "Not_A_Brand";v="24"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+  },
+};
+
+const MAX_CONCURRENCY = 2;
+
+async function runWithConcurrency(tasks, concurrency) {
+  const results = [];
+  let index = 0;
+  async function next() {
+    const i = index++;
+    if (i >= tasks.length) return;
+    results[i] = await tasks[i]();
+    await next();
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, () => next()));
+  return results;
+}
+
 async function captureScreenshots(browser, urls, outputDir, extraCookieSelectors) {
   const viewports = [
     { name: 'desktop', width: 1920, height: 1080 },
@@ -228,18 +262,17 @@ async function captureScreenshots(browser, urls, outputDir, extraCookieSelectors
 
   for (const vpConfig of viewports) {
     const contextOptions = vpConfig.device
-      ? { ...vpConfig.device }
-      : { viewport: { width: vpConfig.width, height: vpConfig.height } };
+      ? { ...vpConfig.device, ...REALISTIC_HEADERS }
+      : { viewport: { width: vpConfig.width, height: vpConfig.height }, ...REALISTIC_HEADERS };
 
-    const context = await browser.newContext(contextOptions);
-    const page = await context.newPage();
-
-    for (const url of urls) {
+    const tasks = urls.map((url) => async () => {
+      const context = await browser.newContext(contextOptions);
+      const page = await context.newPage();
       const filename = `${sanitizeFilename(url)}_${vpConfig.name}.png`;
       const filepath = path.join(outputDir, filename);
 
       try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.goto(url, { waitUntil: 'load', timeout: 60000 });
         await dismissCookieBanners(page, extraCookieSelectors);
         await page.waitForTimeout(1000); // Allow animations to settle
         await page.screenshot({ path: filepath, fullPage: true });
@@ -247,10 +280,12 @@ async function captureScreenshots(browser, urls, outputDir, extraCookieSelectors
         console.log(`  ✓ ${vpConfig.name}: ${url}`);
       } catch (err) {
         console.error(`  ✗ ${vpConfig.name}: ${url} — ${err.message}`);
+      } finally {
+        await context.close();
       }
-    }
+    });
 
-    await context.close();
+    await runWithConcurrency(tasks, MAX_CONCURRENCY);
   }
 
   return screenshots;
@@ -365,7 +400,7 @@ async function main() {
 
     // Phase 1: Crawl
     console.log('📡 Crawling site...');
-    const crawlContext = await browser.newContext();
+    const crawlContext = await browser.newContext(REALISTIC_HEADERS);
     const crawlPage = await crawlContext.newPage();
     const crawlResult = await crawl(crawlPage, args.url, args.depth);
     const pages = crawlResult.pages;
