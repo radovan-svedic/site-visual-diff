@@ -1,0 +1,97 @@
+name: Visual Regression Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: 'The URL to scan (e.g., https://example.com)'
+        required: true
+        type: string
+      project_name:
+        description: 'Folder name for this site (e.g., my-site)'
+        required: true
+        type: string
+      run_mode:
+        description: 'Run mode'
+        required: true
+        type: choice
+        options:
+          - baseline
+          - test
+      threshold:
+        description: 'SSIM threshold 0-1 where 1=identical (default: 0.95)'
+        required: false
+        default: '0.95'
+        type: string
+      depth:
+        description: 'Crawl depth (default: 2)'
+        required: false
+        default: '2'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  visual-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual check
+        env:
+          SITE_URL: ${{ github.event.inputs.site_url }}
+          PROJECT_NAME: ${{ github.event.inputs.project_name }}
+          RUN_MODE: ${{ github.event.inputs.run_mode }}
+          THRESHOLD: ${{ github.event.inputs.threshold }}
+          DEPTH: ${{ github.event.inputs.depth }}
+        run: |
+          node index.js \
+            --url "$SITE_URL" \
+            --project-name "$PROJECT_NAME" \
+            --mode "$RUN_MODE" \
+            --threshold "$THRESHOLD" \
+            --depth "$DEPTH"
+
+      # Baseline mode: commit and push screenshots back to the repo
+      - name: Commit baseline screenshots
+        if: github.event.inputs.run_mode == 'baseline'
+        env:
+          PROJECT_NAME: ${{ github.event.inputs.project_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "screenshots/$PROJECT_NAME/baseline/"
+          git commit -m "chore: update baseline screenshots for $PROJECT_NAME" || echo "No changes to commit"
+          git push
+
+      # Test mode: upload screenshots and diffs as artifacts
+      - name: Upload current screenshots
+        if: github.event.inputs.run_mode == 'test'
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-screenshots-${{ github.event.inputs.project_name }}
+          path: screenshots/${{ github.event.inputs.project_name }}/current/
+          retention-days: 30
+
+      - name: Upload diff images
+        if: github.event.inputs.run_mode == 'test'
+        uses: actions/upload-artifact@v4
+        with:
+          name: diff-images-${{ github.event.inputs.project_name }}
+          path: screenshots/${{ github.event.inputs.project_name }}/diff/
+          if-no-files-found: ignore
+          retention-days: 30
