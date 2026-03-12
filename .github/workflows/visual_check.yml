@@ -1,4 +1,5 @@
 name: Visual Regression Check
+run-name: "${{ inputs.project_name }} [${{ inputs.run_mode }}] - url=[${{ github.site_url }}]; threshold=[${{ github.threshold }}]; crawl depth=[${{ github.depth }}];"
 
 on:
   workflow_dispatch:
