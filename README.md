@@ -25,34 +25,19 @@ npx playwright install --with-deps chromium
 ### Capture a baseline
 
 ```bash
-npm run baseline -- --url https://example.com --project-name my-site
-```
-
-Real example:
-```bash
-npm run baseline -- --url "https://doktorpetrovic.rs" --project-name doktor-petrovic --threshold 0.95 --depth 2
+npm run baseline -- --url https://example.com --project-name MyExampleSite --threshold 0.95 --depth 2
 ```
 
 ### Run a visual test against the baseline by crawling a website and generating screenshots and by comparing a diff
 
 ```bash
-npm run test -- --url https://example.com --project-name my-site
-```
-
-Real example:
-```bash
-npm run test -- --url "https://doktorpetrovic.rs" --project-name doktor-petrovic --threshold 0.95 --depth 2
+npm run test -- --url https://example.com --project-name MyExampleSite --threshold 0.95 --depth 2
 ```
 
 ### Run a JUST A visual test against the baseline by JUST comparing a diff between the baseline and existing (if any) test files from previous 'test' sessions
 
 ```bash
-npm run testdiffalg -- --url https://example.com --project-name my-site
-```
-
-Real example:
-```bash
-npm run testdiffalg -- --url "https://doktorpetrovic.rs" --project-name doktor-petrovic --threshold 0.95 --depth 2
+npm run testdiffalg -- --url https://example.com --project-name MyExampleSite --threshold 0.95 --depth 2
 ```
 
 ### Local debugging (headed mode)
