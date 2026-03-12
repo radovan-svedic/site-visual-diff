@@ -14,5 +14,8 @@
     "pngjs": "^7.0.0"
   },
   "keywords": ["visual-regression", "screenshot", "diff", "testing"],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }
