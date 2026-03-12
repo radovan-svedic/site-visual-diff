@@ -134,7 +134,8 @@ async function crawl(page, baseUrl, maxDepth = 2) {
 
     let status;
     try {
-      const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForTimeout(10000);
       status = response ? response.status() : 0;
     } catch (err) {
       status = 0;
@@ -221,7 +222,7 @@ function sanitizeFilename(url) {
 // Realistic browser fingerprint to avoid bot detection / throttling
 const REALISTIC_HEADERS = {
   userAgent:
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36/VISUAL-DIFF-CHECKER',
   extraHTTPHeaders: {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
@@ -272,9 +273,9 @@ async function captureScreenshots(browser, urls, outputDir, extraCookieSelectors
       const filepath = path.join(outputDir, filename);
 
       try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.waitForTimeout(10000); // Allow images and fonts to settle
         await dismissCookieBanners(page, extraCookieSelectors);
-        await page.waitForTimeout(1000); // Allow animations to settle
         await page.screenshot({ path: filepath, fullPage: true });
         screenshots.push({ url, viewport: vpConfig.name, filepath, filename });
         console.log(`  ✓ ${vpConfig.name}: ${url}`);
