@@ -66,6 +66,18 @@ jobs:
             --threshold "$THRESHOLD" \
             --depth "$DEPTH"
 
+      - name: Write step summary
+        if: always()
+        env:
+          PROJECT_NAME: ${{ github.event.inputs.project_name }}
+        run: |
+          SUMMARY_FILE="screenshots/$PROJECT_NAME/summary.md"
+          if [ -f "$SUMMARY_FILE" ]; then
+            cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ No summary file generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       # Baseline mode: commit and push screenshots back to the repo
       - name: Commit baseline screenshots
         if: github.event.inputs.run_mode == 'baseline'

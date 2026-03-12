@@ -356,6 +356,8 @@ async function main() {
   console.log(`   Headless:  ${headless}\n`);
 
   let screenshots = [];
+  let brokenLinks = [];
+  const summaryPath = path.join(projectDir, 'summary.md');
 
   // Phases 1 & 2: Crawl + Screenshot (skipped in testdiffalg mode)
   if (args.mode !== 'testdiffalg') {
@@ -365,7 +367,9 @@ async function main() {
     console.log('📡 Crawling site...');
     const crawlContext = await browser.newContext();
     const crawlPage = await crawlContext.newPage();
-    const { pages, brokenLinks } = await crawl(crawlPage, args.url, args.depth);
+    const crawlResult = await crawl(crawlPage, args.url, args.depth);
+    const pages = crawlResult.pages;
+    brokenLinks = crawlResult.brokenLinks;
     await crawlContext.close();
 
     console.log(`   Found ${pages.length} page(s)\n`);
@@ -455,6 +459,45 @@ async function main() {
 
     console.log('└──────────────┴──────────┴──────────┴──────────────────────────────┘');
 
+    // Write summary markdown
+    const summaryLines = [];
+    summaryLines.push(`## 🔍 Visual Regression Report — \`${args.projectName}\``);
+    summaryLines.push('');
+
+    if (brokenLinks.length > 0) {
+      summaryLines.push('### ⚠️ Broken Links');
+      summaryLines.push('');
+      summaryLines.push('| Status | URL |');
+      summaryLines.push('|--------|-----|');
+      for (const bl of brokenLinks) {
+        summaryLines.push(`| \`${bl.status}\` | ${bl.url} |`);
+      }
+      summaryLines.push('');
+    }
+
+    summaryLines.push('### 🔬 SSIM Comparison Results');
+    summaryLines.push('');
+    summaryLines.push(`> Threshold: **${args.threshold}** (1.0 = identical)`);
+    summaryLines.push('');
+    summaryLines.push('| Status | Viewport | SSIM | Page |');
+    summaryLines.push('|--------|----------|------|------|');
+    for (const r of results) {
+      const status = r.match ? '✅ PASS' : '❌ FAIL';
+      const score = r.ssimScore !== undefined ? r.ssimScore.toFixed(4) : 'N/A';
+      summaryLines.push(`| ${status} | ${r.viewport} | \`${score}\` | ${r.url} |`);
+    }
+    summaryLines.push('');
+
+    if (hasRegressions) {
+      summaryLines.push('### ❌ Visual regressions detected');
+      summaryLines.push('Check the diff images in the uploaded artifacts.');
+    } else {
+      summaryLines.push('### ✅ All pages match baseline');
+    }
+
+    fs.writeFileSync(summaryPath, summaryLines.join('\n'));
+    console.log(`\n📄 Summary written to ${summaryPath}`);
+
     if (hasRegressions) {
       console.log('\n❌ Visual regressions detected! Check the diff/ folder for details.');
       process.exit(1);
@@ -462,6 +505,25 @@ async function main() {
       console.log('\n✅ All pages match baseline.');
     }
   } else if (args.mode === 'baseline') {
+    // Write baseline summary
+    const summaryLines = [];
+    summaryLines.push(`## 🔍 Baseline Captured — \`${args.projectName}\``);
+    summaryLines.push('');
+
+    if (brokenLinks.length > 0) {
+      summaryLines.push('### ⚠️ Broken Links');
+      summaryLines.push('');
+      summaryLines.push('| Status | URL |');
+      summaryLines.push('|--------|-----|');
+      for (const bl of brokenLinks) {
+        summaryLines.push(`| \`${bl.status}\` | ${bl.url} |`);
+      }
+      summaryLines.push('');
+    }
+
+    summaryLines.push(`✅ **${screenshots.length}** screenshot(s) saved as baseline.`);
+    fs.writeFileSync(summaryPath, summaryLines.join('\n'));
+    console.log(`\n📄 Summary written to ${summaryPath}`);
     console.log(`\n✅ Baseline captured: ${screenshots.length} screenshot(s) saved.`);
   }
 }
