@@ -134,7 +134,7 @@ async function crawl(page, baseUrl, maxDepth = 2) {
 
     let status;
     try {
-      const response = await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+      const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       status = response ? response.status() : 0;
     } catch (err) {
       status = 0;
@@ -237,7 +237,7 @@ const REALISTIC_HEADERS = {
   },
 };
 
-const MAX_CONCURRENCY = 2;
+const MAX_CONCURRENCY = 1;
 
 async function runWithConcurrency(tasks, concurrency) {
   const results = [];
@@ -272,7 +272,7 @@ async function captureScreenshots(browser, urls, outputDir, extraCookieSelectors
       const filepath = path.join(outputDir, filename);
 
       try {
-        await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
         await dismissCookieBanners(page, extraCookieSelectors);
         await page.waitForTimeout(1000); // Allow animations to settle
         await page.screenshot({ path: filepath, fullPage: true });
