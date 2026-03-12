@@ -1,6 +1,8 @@
 # Site Visual Diff
 
-Professional-grade Visual Regression Testing tool. Crawls websites, captures full-page screenshots at multiple viewports, and detects visual changes using pixel-level comparison.
+Most of the files in this project were created in whole or in part by generative AI.
+
+Visual Regression Testing tool. Crawls websites, captures full-page screenshots at multiple viewports, and detects visual changes using pixel-level comparison (using SSIM aproach).
 
 ## Features
 
